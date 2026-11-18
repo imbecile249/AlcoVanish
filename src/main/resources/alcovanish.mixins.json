@@ -1,0 +1,21 @@
+{
+	"required": true,
+	"package": "local.alcovanish.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"ClientPacketListenerMixin",
+		"OreUpdateMixin",
+		"PlayerOutlineMixin",
+		"WorldMobOutlineMixin",
+		"OutlineDepthMixin",
+		"OutlinePostChainMixin",
+		"EntityRenderStateMixin",
+		"EntityHealthRendererMixin",
+		"RenderPipelinesAccessor",
+		"RenderTypeInvoker"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
+

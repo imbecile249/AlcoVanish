@@ -1,0 +1,11 @@
+{
+	"key.category.alcovanish.general": "AlcoVanish",
+	"key.alcovanish.open_settings": "Открыть настройки AlcoVanish",
+	"key.alcovanish.toggle_mob_highlight": "Включить/выключить подсветку мобов",
+	"key.alcovanish.toggle_highlight": "Включить/выключить подсветку игроков",
+	"key.alcovanish.toggle_block_highlights": "Включить/выключить подсветку блоков и руд",
+	"key.alcovanish.toggle_pm_broadcast": "Запустить/остановить рассылку личных сообщений",
+	"key.alcovanish.toggle_sign_mode": "Включить/выключить заполнение табличек",
+	"key.alcovanish.toggle_nearby_list": "Список игроков рядом: вкл / выкл"
+}
+

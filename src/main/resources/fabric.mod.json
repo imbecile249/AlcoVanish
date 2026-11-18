@@ -1,0 +1,33 @@
+{
+	"schemaVersion": 1,
+	"id": "alcovanish",
+	"version": "${version}",
+	"name": "alcovanish",
+	"description": "by imbecile249",
+	"icon": "assets/alcovanish/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"local.alcovanish.NearbyWorkshopClient"
+		],
+		"modmenu": [
+			"local.alcovanish.ModMenuIntegration"
+		]
+	},
+	"mixins": [
+		{
+			"config": "alcovanish.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"modmenu": "*"
+	}
+}
+

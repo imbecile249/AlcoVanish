@@ -1,0 +1,23 @@
+{
+    "targets": { "edges": {} },
+    "passes": [
+        {
+            "vertex_shader": "minecraft:core/screenquad",
+            "fragment_shader": "alcovanish:post/depth_outline",
+            "inputs": [
+                { "sampler_name": "In", "target": "minecraft:entity_outline" },
+                { "sampler_name": "Depth", "target": "minecraft:entity_outline", "use_depth_buffer": true }
+            ],
+            "output": "edges"
+        },
+        {
+            "vertex_shader": "minecraft:core/screenquad",
+            "fragment_shader": "minecraft:post/blit",
+            "inputs": [{ "sampler_name": "In", "target": "edges" }],
+            "output": "minecraft:entity_outline",
+            "uniforms": {
+                "BlitConfig": [{ "name": "ColorModulate", "type": "vec4", "value": [1.0, 1.0, 1.0, 1.0] }]
+            }
+        }
+    ]
+}

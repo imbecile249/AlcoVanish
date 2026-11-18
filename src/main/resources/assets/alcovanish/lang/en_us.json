@@ -1,0 +1,11 @@
+{
+	"key.category.alcovanish.general": "AlcoVanish",
+	"key.alcovanish.open_settings": "Open AlcoVanish settings",
+	"key.alcovanish.toggle_mob_highlight": "Toggle mob outlines",
+	"key.alcovanish.toggle_highlight": "Toggle nearby player outline",
+	"key.alcovanish.toggle_block_highlights": "Toggle block and ore highlights",
+	"key.alcovanish.toggle_pm_broadcast": "Start/stop private message broadcast",
+	"key.alcovanish.toggle_sign_mode": "Toggle sign filling mode",
+	"key.alcovanish.toggle_nearby_list": "Nearby players list: on/off"
+}
+
