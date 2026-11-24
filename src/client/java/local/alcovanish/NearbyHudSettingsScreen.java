@@ -31,10 +31,10 @@ final class NearbyHudSettingsScreen extends Screen {
 		int controlWidth = Math.min(190, (width - 30) / 2);
 		addRenderableWidget(new HudSlider(width / 2 - controlWidth - 4, controlWidth, true));
 		addRenderableWidget(new HudSlider(width / 2 + 4, controlWidth, false));
-		addRenderableWidget(Button.builder(Component.literal("Готово"), button -> onClose())
+		addRenderableWidget(AlcoButton.styled(Component.literal("Готово"), button -> onClose())
 				.bounds(width / 2 - 55, health ? 59 : height - 28, 110, 20).build());
 		if (health) {
-			addRenderableWidget(Button.builder(Component.literal("Сбросить положение"), button -> {
+			addRenderableWidget(AlcoButton.styled(Component.literal("Сбросить положение"), button -> {
 				NearbyWorkshopClient.CONFIG.healthHudOffsetX = 0;
 				NearbyWorkshopClient.CONFIG.healthHudBottom = 64;
 			}).bounds(width / 2 - 75, 85, 150, 20).build());

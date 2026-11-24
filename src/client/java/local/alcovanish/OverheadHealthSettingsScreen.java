@@ -2,7 +2,6 @@ package local.alcovanish;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractSliderButton;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -33,9 +32,9 @@ final class OverheadHealthSettingsScreen extends Screen {
 		left = (width - panelWidth) / 2;
 		top = Math.max(2, (height - previewHeight - 96) / 2);
 		int tabWidth = (panelWidth - 28) / 2;
-		addRenderableWidget(Button.builder(Component.literal("Игроки"), b -> select(true))
+		addRenderableWidget(AlcoButton.styled(Component.literal("Игроки"), b -> select(true))
 				.bounds(left + 10, top + 8, tabWidth, 20).build()).active = !players;
-		addRenderableWidget(Button.builder(Component.literal("Мобы"), b -> select(false))
+		addRenderableWidget(AlcoButton.styled(Component.literal("Мобы"), b -> select(false))
 				.bounds(left + 18 + tabWidth, top + 8, tabWidth, 20).build()).active = players;
 		var config = NearbyWorkshopClient.CONFIG;
 		var style = players ? config.playerOverheadStyle : config.mobOverheadStyle;
@@ -45,7 +44,7 @@ final class OverheadHealthSettingsScreen extends Screen {
 				n -> String.format(Locale.ROOT, "Высота: %.2f бл.", n / 100.0), n -> style.height = n));
 		addRenderableWidget(new Slider(left + 10, y + 21, w, 100, style.scale - 50,
 				n -> "Размер: " + (n + 50) + "%", n -> style.scale = n + 50));
-		addRenderableWidget(Button.builder(Component.literal("Готово"), b -> onClose())
+		addRenderableWidget(AlcoButton.styled(Component.literal("Готово"), b -> onClose())
 				.bounds(width / 2 - 55, y + 43, 110, 18).build());
 	}
 

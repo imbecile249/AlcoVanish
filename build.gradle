@@ -34,10 +34,9 @@ dependencies {
 }
 
 processResources {
-	def modVersion = project.version.toString()
-	inputs.property 'version', modVersion
+	inputs.property 'version', project.version
 	filesMatching('fabric.mod.json') {
-		expand 'version': modVersion
+		expand 'version': project.version
 	}
 }
 

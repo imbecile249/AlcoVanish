@@ -8,18 +8,22 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.layouts.LinearLayout;
+import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
+import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
 /** Original compact settings panel opened from Mod Menu. */
@@ -32,15 +36,26 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 	private static final int SIGN_PREVIEW_X = 473;
 	private static final net.minecraft.resources.Identifier OAK_SIGN_TEXTURE =
 			net.minecraft.resources.Identifier.withDefaultNamespace("textures/item/oak_sign.png");
-	private enum Tab { SIGNS, PLAYERS, MOBS, BLOCKS, MESSAGES, HEALTH }
+	private enum Tab {
+		SIGNS("Таблички"), PLAYERS("Игроки"), MOBS("Мобы"), BLOCKS("Блоки"),
+		MESSAGES("Рассылка"), HEALTH("HP"), EXTRAS("Доп. опции");
+
+		private final String label;
+
+		Tab(String label) {
+			this.label = label;
+		}
+	}
 
 	private final Screen parent;
 	private Tab tab = Tab.SIGNS;
 	private final Map<String, EditBox> fields = new LinkedHashMap<>();
 	private final Map<String, DropdownSpec> dropdowns = new LinkedHashMap<>();
+	private final Map<Checkbox, Identifier> extraIcons = new LinkedHashMap<>();
 	private int templatePage;
 	private String signTransferStatus = "";
 	private int panelLeft;
+	private int frameWidth;
 	private int panelTop;
 	private int frameTop;
 	private int frameBottom;
@@ -67,7 +82,18 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 	protected void init() {
 		fields.clear();
 		dropdowns.clear();
-		menuScale = Math.min(1f, (float) width / (PANEL_WIDTH + EDGE * 2));
+		extraIcons.clear();
+		Tab[] tabs = Tab.values();
+		int[] tabWidths = new int[tabs.length];
+		int tabGap = 6;
+		int requiredTabWidth = (tabs.length - 1) * tabGap;
+		for (int i = 0; i < tabs.length; i++) {
+			tabWidths[i] = font.width(tabLabel(tabs[i], true)) + 12;
+			requiredTabWidth += tabWidths[i];
+		}
+		int tabRowWidth = Math.max(PANEL_WIDTH - 44, requiredTabWidth);
+		frameWidth = tabRowWidth + 44;
+		menuScale = Math.min(1f, (float) width / (frameWidth + EDGE * 2));
 		menuWidth = Math.round(width / menuScale);
 		menuHeight = Math.round(height / menuScale);
 		frameTop = panelOrigin(menuHeight, PANEL_HEIGHT);
@@ -81,12 +107,15 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 		}
 		addKeybind("Открыть настройки", NearbyWorkshopClient.settingsKey(), panelLeft + 270, panelTop + 14, 228);
 		int tabY = panelTop + 48;
-		addTabButton("Таблички", Tab.SIGNS, panelLeft + 22, tabY, 87);
-		addTabButton("Игроки", Tab.PLAYERS, panelLeft + 115, tabY, 76);
-		addTabButton("Мобы", Tab.MOBS, panelLeft + 197, tabY, 66);
-		addTabButton("Блоки", Tab.BLOCKS, panelLeft + 269, tabY, 68);
-		addTabButton("Рассылка", Tab.MESSAGES, panelLeft + 343, tabY, 89);
-		addTabButton("HP", Tab.HEALTH, panelLeft + 438, tabY, 60);
+		int tabX = (menuWidth - tabRowWidth) / 2;
+		int spare = tabRowWidth - requiredTabWidth;
+		for (int i = 0; i < tabs.length; i++) {
+			Tab target = tabs[i];
+			int buttonWidth = tabWidths[i] + spare / tabs.length + (i < spare % tabs.length ? 1 : 0);
+			addRenderableWidget(AlcoButton.styled(tabLabel(target, tab == target), button -> switchTab(target))
+					.bounds(tabX, tabY, buttonWidth, 26).build());
+			tabX += buttonWidth + tabGap;
+		}
 
 		headerCount = children().size();
 		panelTop -= scrollY;
@@ -97,10 +126,11 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 			case BLOCKS -> buildBlockHighlightsTab();
 			case MESSAGES -> buildMessagesTab();
 			case HEALTH -> buildHealthTab();
+			case EXTRAS -> buildExtrasTab();
 		}
 
 		bodyEnd = children().size();
-		addRenderableWidget(Button.builder(Component.literal("Готово"), button -> onClose())
+		addRenderableWidget(AlcoButton.styled(Component.literal("Готово"), button -> onClose())
 				.bounds((menuWidth - 150) / 2, frameBottom - 30, 150, 24).build());
 	}
 
@@ -111,18 +141,18 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 		addKeybind("Клавиша режима табличек", NearbyWorkshopClient.signKey(), panelLeft + 263, panelTop + 82, 232);
 		addToggle("Перезаписывать готовый текст", config.signReapply, value -> config.signReapply = value,
 				panelLeft + 22, panelTop + 108, 232);
-		addRenderableWidget(Button.builder(Component.literal("‹"), b -> switchPreset(-1))
+		addRenderableWidget(AlcoButton.styled(Component.literal("‹"), b -> switchPreset(-1))
 				.bounds(panelLeft + 112, panelTop + 140, 21, 21).build());
 		addInput("presetName", "Имя набора", config.activeSignPreset, panelLeft + 136, panelTop + 140, 235);
-		addRenderableWidget(Button.builder(Component.literal("›"), b -> switchPreset(1))
+		addRenderableWidget(AlcoButton.styled(Component.literal("›"), b -> switchPreset(1))
 				.bounds(panelLeft + 374, panelTop + 140, 21, 21).build());
-		addRenderableWidget(Button.builder(Component.literal("+"), b -> createPreset())
+		addRenderableWidget(AlcoButton.styled(Component.literal("+"), b -> createPreset())
 				.tooltip(Tooltip.create(Component.literal("Создать пустой набор с именем из поля.")))
 				.bounds(panelLeft + 398, panelTop + 140, 25, 21).build());
-		addRenderableWidget(Button.builder(Component.literal("✓"), b -> renamePreset())
+		addRenderableWidget(AlcoButton.styled(Component.literal("✓"), b -> renamePreset())
 				.tooltip(Tooltip.create(Component.literal("Переименовать текущий набор.")))
 				.bounds(panelLeft + 426, panelTop + 140, 25, 21).build());
-		addRenderableWidget(Button.builder(Component.literal("Набор ✕"), b -> confirmDeletePreset())
+		addRenderableWidget(AlcoButton.styled(Component.literal("Набор ✕"), b -> confirmDeletePreset())
 				.bounds(panelLeft + 454, panelTop + 140, 44, 21).build()).active = !config.savedSignPresets.isEmpty();
 		config.sanitize();
 		templatePage = Math.max(0, Math.min(templatePage, signPageCount(config.signTemplates.length) - 1));
@@ -136,7 +166,7 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 				addSignLine(row, line, line < value.length ? value[line] : "",
 						panelLeft + 72 + line * (SIGN_FIELD_WIDTH + 2), y);
 			}
-			addRenderableWidget(Button.builder(Component.empty(), button -> {
+			addRenderableWidget(AlcoButton.styled(Component.empty(), button -> {
 				commitFields();
 				NearbyWorkshopClient.saveConfig();
 				previewTemplate = readSignRow(entryRow);
@@ -144,7 +174,7 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 				rebuildTab();
 			}).tooltip(Tooltip.create(Component.literal("Предпросмотр текста на табличке.")))
 					.bounds(panelLeft + SIGN_PREVIEW_X, y, 19, 21).build());
-			addRenderableWidget(Button.builder(Component.literal("✕").withStyle(Style.EMPTY.withColor(0xB46BFF)), button -> {
+			addRenderableWidget(AlcoButton.styled(Component.literal("✕").withStyle(Style.EMPTY.withColor(0xB46BFF)), button -> {
 				commitFields();
 				for (int line = 0; line < 4; line++) fields.get(signField(entryRow, line)).setValue("");
 				commitFields();
@@ -152,20 +182,20 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 			}).tooltip(Tooltip.create(Component.literal("Очистить текст этой записи.")))
 					.bounds(panelLeft + 495, y, 19, 21).build());
 		}
-		addRenderableWidget(Button.builder(Component.literal("‹"), button -> changeTemplatePage(-1))
+		addRenderableWidget(AlcoButton.styled(Component.literal("‹"), button -> changeTemplatePage(-1))
 				.bounds(panelLeft + 22, panelTop + 331, 30, 22).build());
-		addRenderableWidget(Button.builder(Component.literal("›"), button -> changeTemplatePage(1))
+		addRenderableWidget(AlcoButton.styled(Component.literal("›"), button -> changeTemplatePage(1))
 				.bounds(panelLeft + 55, panelTop + 331, 30, 22).build());
-		addRenderableWidget(Button.builder(Component.literal("Добавить"), button -> addTemplate())
+		addRenderableWidget(AlcoButton.styled(Component.literal("Добавить"), button -> addTemplate())
 				.tooltip(Tooltip.create(Component.literal("Добавить запись: одна запись соответствует одной табличке.")))
 				.bounds(panelLeft + 101, panelTop + 331, 100, 22).build());
-		addRenderableWidget(Button.builder(Component.literal("Удалить"), button -> removeTemplate())
+		addRenderableWidget(AlcoButton.styled(Component.literal("Удалить"), button -> removeTemplate())
 				.tooltip(Tooltip.create(Component.literal("Удаляет последнюю запись на этой странице.")))
 				.bounds(panelLeft + 207, panelTop + 331, 100, 22).build());
-		addRenderableWidget(Button.builder(Component.literal("Импорт"), button -> transferSignPresets(true))
+		addRenderableWidget(AlcoButton.styled(Component.literal("Импорт"), button -> transferSignPresets(true))
 				.tooltip(Tooltip.create(Component.literal("Добавить наборы из config/" + SignPresetTransfer.FILE_NAME)))
 				.bounds(panelLeft + 263, panelTop + 108, 112, 22).build());
-		addRenderableWidget(Button.builder(Component.literal("Экспорт"), button -> transferSignPresets(false))
+		addRenderableWidget(AlcoButton.styled(Component.literal("Экспорт"), button -> transferSignPresets(false))
 				.tooltip(Tooltip.create(Component.literal("Записать все наборы в config/" + SignPresetTransfer.FILE_NAME
 						+ ". Предыдущий экспорт будет заменён.")))
 				.bounds(panelLeft + 383, panelTop + 108, 112, 22).build());
@@ -199,7 +229,7 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 	private void addPreviewCloseButton() {
 		previewLeft = (menuWidth - 300) / 2;
 		previewTop = (menuHeight - 184) / 2;
-		addRenderableWidget(Button.builder(Component.literal("✕").withStyle(Style.EMPTY.withColor(0xFFFF85D0)), button -> closePreview())
+		addRenderableWidget(AlcoButton.styled(Component.literal("✕").withStyle(Style.EMPTY.withColor(0xFFFF85D0)), button -> closePreview())
 				.tooltip(Tooltip.create(Component.literal("Закрыть предпросмотр.")))
 				.bounds(previewLeft + 264, previewTop + 8, 26, 22).build());
 	}
@@ -263,7 +293,7 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 		commitFields();
 		NearbyWorkshopClient.saveConfig();
 		var config = NearbyWorkshopClient.CONFIG;
-		minecraft.gui.setScreen(new net.minecraft.client.gui.screens.ConfirmScreen(confirmed -> {
+		minecraft.gui.setScreen(new ConfirmScreen(confirmed -> {
 			if (confirmed && !config.savedSignPresets.isEmpty()) {
 				var next = config.savedSignPresets.entrySet().iterator().next();
 				config.activeSignPreset = next.getKey();
@@ -274,7 +304,13 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 			}
 			minecraft.gui.setScreen(this);
 		}, Component.literal("Удалить набор «" + config.activeSignPreset + "»?"),
-				Component.literal("Все шаблоны этого набора будут удалены.")));
+				Component.literal("Все шаблоны этого набора будут удалены.")) {
+			@Override
+			protected void addButtons(LinearLayout row) {
+				yesButton = row.addChild(AlcoButton.styled(yesButtonComponent, button -> callback.accept(true)).build());
+				noButton = row.addChild(AlcoButton.styled(noButtonComponent, button -> callback.accept(false)).build());
+			}
+		});
 	}
 
 	private void finishPresetChange() {
@@ -348,7 +384,7 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 			config.nearbyEnabled = value;
 			NearbyWorkshopClient.saveConfig();
 		}, panelLeft + 265, panelTop + 99, 232);
-		addRenderableWidget(Button.builder(Component.literal("Настроить HUD игроков"), b -> {
+		addRenderableWidget(AlcoButton.styled(Component.literal("Настроить HUD игроков"), b -> {
 			commitFields();
 			NearbyWorkshopClient.saveConfig();
 			minecraft.gui.setScreen(new NearbyHudSettingsScreen(this));
@@ -379,7 +415,7 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 		addKeybind("Клавиша вкл/выкл", NearbyWorkshopClient.mobHighlightKey(), panelLeft + 22, controlsY + 29, 232);
 		addToggle("Список мобов", config.mobCounterEnabled, value -> config.mobCounterEnabled = value,
 				panelLeft + 265, panelTop + 104, 232);
-		addRenderableWidget(Button.builder(Component.literal("Настроить HUD счётчика мобов"), button ->
+		addRenderableWidget(AlcoButton.styled(Component.literal("Настроить HUD счётчика мобов"), button ->
 				minecraft.gui.setScreen(new MobCounterSettingsScreen(this)))
 				.bounds(panelLeft + 265, panelTop + 133, 232, 22).build());
 		buildOpenDropdown();
@@ -416,6 +452,50 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 		}
 	}
 
+	private void buildExtrasTab() {
+		var config = NearbyWorkshopClient.CONFIG;
+		addExtraCheckbox("Автоподбор инструмента", "item/diamond_pickaxe", 45, 104, config.autoTool,
+				enabled -> config.autoTool = enabled,
+				"При начале добычи выбирает подходящий инструмент из хотбара. При равной пригодности выбирает более быстрый.");
+		addExtraCheckbox("Отключение тумана", "item/spyglass", 45, 134, config.noFog,
+				enabled -> config.noFog = enabled,
+				"Убирает туман на клиенте. Дальность загрузки чанков задаётся настройками игры и сервера.");
+		addExtraCheckbox("Автототем", "item/totem_of_undying", 45, 164, config.autoTotem,
+				enabled -> config.autoTotem = enabled,
+				"Первый тотем возьмите вручную. После его срабатывания мод поставит запасной тотем из инвентаря в левую руку.");
+		addExtraCheckbox("Ночное зрение", "mob_effect/night_vision", 45, 194, config.nightVision,
+				enabled -> config.nightVision = enabled,
+				"Осветляет мир как зелье ночного зрения. Работает постоянно, пока включена галочка.");
+		addExtraCheckbox("Отключение темноты от вардена", "mob_effect/darkness", 45, 224, config.noDarkness,
+				enabled -> config.noDarkness = enabled,
+				"Сохраняет обычный обзор при эффекте «Темнота».");
+
+		int right = panelLeft + 265;
+		addRenderableWidget(Checkbox.builder(Component.literal("Показывать HUD счётчика"), font)
+				.pos(right, panelTop + 104).selected(config.brokenContainerHud)
+				.onValueChange((checkbox, enabled) -> {
+					config.brokenContainerHud = enabled;
+					NearbyWorkshopClient.saveConfig();
+				}).build());
+		addRenderableWidget(AlcoButton.styled(Component.literal("Настроить HUD счётчика"), button ->
+				minecraft.gui.setScreen(new ContainerCounterSettingsScreen(this)))
+				.bounds(right, panelTop + 132, 232, 22).build());
+		addRenderableWidget(AlcoButton.styled(Component.literal("Сбросить счётчик"), button -> BrokenContainerCounter.reset())
+				.bounds(right, panelTop + 158, 232, 22).build());
+	}
+
+	private void addExtraCheckbox(String label, String icon, int x, int y, boolean selected,
+			Consumer<Boolean> setter, String help) {
+		Checkbox checkbox = addRenderableWidget(Checkbox.builder(Component.literal(label), font)
+				.pos(panelLeft + x, panelTop + y).selected(selected)
+				.tooltip(Tooltip.create(Component.literal(help)))
+				.onValueChange((widget, enabled) -> {
+					setter.accept(enabled);
+					NearbyWorkshopClient.saveConfig();
+				}).build());
+		extraIcons.put(checkbox, Identifier.withDefaultNamespace("textures/" + icon + ".png"));
+	}
+
 	private void buildHealthTab() {
 		var config = NearbyWorkshopClient.CONFIG;
 		var modes = NearbyWorkshopClient.Config.HealthMode.values();
@@ -424,16 +504,16 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 				panelLeft + 22, panelTop + 104, 232, step -> config.playerHealthMode = modes[step]);
 		addDropdownButton("mobHealth", "Мобы", config.mobHealthMode.label, labels,
 				panelLeft + 263, panelTop + 104, 232, step -> config.mobHealthMode = modes[step]);
-		addRenderableWidget(Button.builder(Component.empty(), button -> {
+		addRenderableWidget(AlcoButton.styled(Component.empty(), button -> {
 			config.healthHudHearts = !config.healthHudHearts;
 			NearbyWorkshopClient.saveConfig();
 			rebuildTab();
 		}).tooltip(Tooltip.create(Component.literal(config.healthHudHearts ? "Вид: сердца" : "Вид: полоса")))
 				.bounds(panelLeft + 104, panelTop + 225, 312, 22).build());
-		addRenderableWidget(Button.builder(Component.literal("При наведении"), button ->
+		addRenderableWidget(AlcoButton.styled(Component.literal("При наведении"), button ->
 				minecraft.gui.setScreen(new NearbyHudSettingsScreen(this, true)))
 				.bounds(panelLeft + 104, panelTop + 253, 312, 22).build());
-		addRenderableWidget(Button.builder(Component.literal("Постоянное отображение"), button ->
+		addRenderableWidget(AlcoButton.styled(Component.literal("Постоянное отображение"), button ->
 				minecraft.gui.setScreen(new OverheadHealthSettingsScreen(this)))
 				.bounds(panelLeft + 104, panelTop + 281, 312, 22).build());
 		buildOpenDropdown();
@@ -454,9 +534,9 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 		addKeybind("Клавиша вкл/выкл", NearbyWorkshopClient.broadcastKey(), panelLeft + 263, panelTop + 170, 232);
 		addInput("pmExcludedPlayers", "Исключения: ники через запятую", config.pmExcludedPlayers,
 				panelLeft + 22, panelTop + 226, 473);
-		addRenderableWidget(Button.builder(Component.literal("Начать для игроков онлайн"), button -> startPrivateMessageBroadcast())
+		addRenderableWidget(AlcoButton.styled(Component.literal("Начать для игроков онлайн"), button -> startPrivateMessageBroadcast())
 				.bounds(panelLeft + 22, panelTop + 266, 230, 24).build());
-		addRenderableWidget(Button.builder(Component.literal("Остановить"), button -> PrivateMessageBroadcast.stop(Minecraft.getInstance()))
+		addRenderableWidget(AlcoButton.styled(Component.literal("Остановить"), button -> PrivateMessageBroadcast.stop(Minecraft.getInstance()))
 				.bounds(panelLeft + 263, panelTop + 266, 232, 24).build());
 	}
 
@@ -464,6 +544,12 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 	private static final int MAX_HIGHLIGHT_RANGE = NearbyWorkshopClient.Config.MAX_BLOCK_HIGHLIGHT_RANGE;
 	private static final net.minecraft.resources.Identifier CHEST_TEXTURE =
 			net.minecraft.resources.Identifier.withDefaultNamespace("textures/entity/chest/normal.png");
+
+	private static void drawChestIcon(GuiGraphicsExtractor graphics, int x, int y) {
+		graphics.blit(CHEST_TEXTURE, x, y, x + 14, y + 5, 14 / 64f, 28 / 64f, 14 / 64f, 19 / 64f);
+		graphics.blit(CHEST_TEXTURE, x, y + 5, x + 14, y + 15, 14 / 64f, 28 / 64f, 33 / 64f, 43 / 64f);
+		graphics.fill(x + 6, y + 4, x + 8, y + 8, 0xFFCCC1A2);
+	}
 	private static final net.minecraft.resources.Identifier REDSTONE_TEXTURE =
 			net.minecraft.resources.Identifier.withDefaultNamespace("textures/item/redstone.png");
 	private static final int ORE_RANGE_Y = 110 + (OreHighlightMode.families().size() + 1) * 20;
@@ -535,7 +621,7 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 	private void addKeybind(String label, KeyMapping mapping, int x, int y, int width) {
 		if (mapping == null) return;
 		String key = capturingKey == mapping ? "Нажми клавишу…" : mapping.getTranslatedKeyMessage().getString();
-		addRenderableWidget(Button.builder(Component.literal(label + ": " + key), button -> {
+		addRenderableWidget(AlcoButton.styled(Component.literal(label + ": " + key), button -> {
 			capturingKey = mapping;
 			button.setMessage(Component.literal(label + ": Нажми клавишу…"));
 		}).tooltip(Tooltip.create(Component.literal("Нажми кнопку и затем клавишу. Escape снимает назначение.")))
@@ -546,7 +632,7 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 			int x, int y, int buttonWidth, IntConsumer onSelect) {
 		DropdownSpec spec = new DropdownSpec(id, options, x, y, buttonWidth, onSelect);
 		dropdowns.put(id, spec);
-		addRenderableWidget(Button.builder(Component.literal(label + ": " + selected + "  ▾"), button -> {
+		addRenderableWidget(AlcoButton.styled(Component.literal(label + ": " + selected + "  ▾"), button -> {
 			commitFields();
 			NearbyWorkshopClient.saveConfig();
 			openDropdown = id.equals(openDropdown) ? null : id;
@@ -564,7 +650,7 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 			if ("mobFilter".equals(spec.id())) {
 				option = Component.literal(spec.options()[i]).withColor(MobHighlights.Filter.values()[i].color);
 			}
-			addRenderableWidget(Button.builder(option, button -> {
+			addRenderableWidget(AlcoButton.styled(option, button -> {
 				commitFields();
 				spec.onSelect().accept(selectedIndex);
 				NearbyWorkshopClient.CONFIG.sanitize();
@@ -581,7 +667,8 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 		private HighlightRangeSlider(int x, int y, int width, int height, int step, boolean ores) {
 			super(x, y, width, height, Component.empty(), step / (double) MAX_HIGHLIGHT_RANGE);
 			this.ores = ores;
-			setTooltip(Tooltip.create(Component.literal("Дальность от 1 до 64 блоков. «Бесконечно» ограничено загруженными чанками в радиусе прорисовки.")));
+			setTooltip(Tooltip.create(Component.literal("Дальность от 1 до " + MAX_HIGHLIGHT_RANGE
+					+ " блоков. «Бесконечно» ограничено загруженными чанками в радиусе прорисовки.")));
 			updateMessage();
 		}
 
@@ -607,19 +694,16 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 		PrivateMessageBroadcast.start(Minecraft.getInstance());
 	}
 
-	private void addTabButton(String label, Tab target, int x, int y, int buttonWidth) {
-		boolean selected = tab == target;
-		String text = (selected ? "◆ " : "") + label;
-		Component styled = Component.literal(text).withStyle(Style.EMPTY.withBold(true)
+	private static Component tabLabel(Tab target, boolean selected) {
+		String text = (selected ? "◆ " : "") + target.label;
+		return Component.literal(text).withStyle(Style.EMPTY.withBold(true)
 				.withColor(selected ? 0xFFE9BDFF : 0xFFE7D5E6));
-		addRenderableWidget(Button.builder(styled, button -> switchTab(target))
-				.bounds(x, y, buttonWidth, 26).build());
 	}
 
 	private void addToggle(String label, boolean value, java.util.function.Consumer<Boolean> setter,
 			int x, int y, int buttonWidth) {
 		String status = value ? "ВКЛ" : "ВЫКЛ";
-		addRenderableWidget(Button.builder(Component.literal(label + ": " + status), button -> {
+		addRenderableWidget(AlcoButton.styled(Component.literal(label + ": " + status), button -> {
 			commitFields();
 			setter.accept(!value);
 			NearbyWorkshopClient.saveConfig();
@@ -871,9 +955,7 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 
 			int x = panelLeft + 23;
 			int y = panelTop + 107;
-			graphics.blit(CHEST_TEXTURE, x, y, x + 14, y + 5, 14 / 64f, 28 / 64f, 14 / 64f, 19 / 64f);
-			graphics.blit(CHEST_TEXTURE, x, y + 5, x + 14, y + 15, 14 / 64f, 28 / 64f, 33 / 64f, 43 / 64f);
-			graphics.fill(x + 6, y + 4, x + 8, y + 8, 0xFFCCC1A2);
+			drawChestIcon(graphics, x, y);
 			graphics.blit(REDSTONE_TEXTURE, x - 1, y + 22, x + 15, y + 38, 0, 1, 0, 1);
 			var ores = OreHighlightMode.families();
 			for (int row = 0; row < ores.size(); row++) drawOreIcon(graphics, ores.get(row), row + 1);
@@ -885,6 +967,11 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 
 
 
+		} else if (tab == Tab.EXTRAS) {
+			graphics.text(font, "ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ", panelLeft + 22, panelTop + 83, 0xFFE9BDFF);
+			graphics.fill(panelLeft + 259, panelTop + 80, panelLeft + 260, panelTop + 181, 0x506D5584);
+			drawChestIcon(graphics, panelLeft + 265, panelTop + 80);
+			graphics.text(font, BrokenContainerCounter.label(), panelLeft + 285, panelTop + 83, 0xFFE9BDFF);
 		} else if (tab == Tab.HEALTH) {
 			graphics.text(font, "ЗДОРОВЬЕ ЦЕЛИ", panelLeft + 22, panelTop + 83, 0xFFE9BDFF);
 			graphics.text(font, "Настройки", panelLeft + (PANEL_WIDTH - font.width("Настройки")) / 2, panelTop + 209, 0xFFE9BDFF);
@@ -912,8 +999,8 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 		graphics.pose().popMatrix();
 	}
 
-	private int frameLeft() { return panelOrigin(menuWidth, PANEL_WIDTH); }
-	private int frameRight() { return Math.min(menuWidth - EDGE, frameLeft() + PANEL_WIDTH); }
+	private int frameLeft() { return panelOrigin(menuWidth, frameWidth); }
+	private int frameRight() { return Math.min(menuWidth - EDGE, frameLeft() + frameWidth); }
 	private int bodyTop() { return Math.min(frameTop + 79, bodyBottom() - 1); }
 	private int bodyBottom() { return frameBottom - 36; }
 
@@ -924,6 +1011,7 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 			case PLAYERS -> 365;
 			case MOBS -> "mobFilter".equals(openDropdown) ? 307 : 230;
 			case MESSAGES, HEALTH -> 345;
+			case EXTRAS -> 253;
 		};
 		return Math.max(0, frameTop + contentBottom - bodyBottom());
 	}
@@ -943,6 +1031,14 @@ public final class NearbyWorkshopSettingsScreen extends Screen {
 			int bottom = i < headerCount ? bodyTop() : i < bodyEnd ? bodyBottom() : frameBottom;
 			graphics.enableScissor(frameLeft() + 1, top, frameRight() - 1, bottom);
 			widget.extractRenderState(graphics, (int) (mouseX / menuScale), (int) (mouseY / menuScale), delta);
+			if (widget instanceof Checkbox checkbox) {
+				Identifier icon = extraIcons.get(checkbox);
+				if (icon != null) {
+					int x = checkbox.getX() - 23;
+					int y = checkbox.getY() + (Checkbox.getBoxSize(font) - 16) / 2;
+					graphics.blit(icon, x, y, x + 16, y + 16, 0, 1, 0, 1);
+				}
+			}
 			if (tab == Tab.SIGNS && widget instanceof Button && widget.getX() == panelLeft + SIGN_PREVIEW_X) {
 				int x = widget.getX() + 2;
 				int y = widget.getY() + 3;

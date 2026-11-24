@@ -61,6 +61,7 @@ public final class NearbyWorkshopClient implements ClientModInitializer {
 		TargetHealthHud.init();
 		BlockHighlights.init();
 		MobCounterHud.init();
+		BrokenContainerCounter.init();
 
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> { CONFIG.signEnabled = false; SignAutomation.reset(); });
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> SignAutomation.reset());
@@ -73,6 +74,8 @@ public final class NearbyWorkshopClient implements ClientModInitializer {
 						.then(ClientCommands.literal("reload").executes(context -> { reloadConfig(); message(Minecraft.getInstance(), "Настройки AlcoVanish перечитаны."); return 1; }))
 		));
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			ExtraFeatures.tickTotem(client);
+			BrokenContainerCounter.tick(client.level);
 			while (openSettingsKey.consumeClick()) {
 				if (client.player != null && client.gui.screen() == null) {
 					client.gui.setScreen(new NearbyWorkshopSettingsScreen(null));
@@ -189,6 +192,19 @@ public final class NearbyWorkshopClient implements ClientModInitializer {
 	}
 
 	public static final class Config {
+		static final int DEFAULT_CONTAINER_HUD_RIGHT = 2;
+		static final int DEFAULT_CONTAINER_HUD_TOP = 8;
+		public boolean autoTool;
+		public boolean noFog;
+		public boolean nightVision;
+		public boolean noDarkness;
+		public boolean autoTotem;
+		public long brokenContainers;
+		public boolean brokenContainerHud;
+		public double brokenContainerHudRight = DEFAULT_CONTAINER_HUD_RIGHT;
+		public double brokenContainerHudTop = DEFAULT_CONTAINER_HUD_TOP;
+		public int brokenContainerHudScale = 100;
+		public int brokenContainerHudOpacity = 60;
 		public boolean highlightEnabled;
 		public String redOutlineNames = "";
 		public String greenOutlineNames = "";
@@ -225,7 +241,7 @@ public final class NearbyWorkshopClient implements ClientModInitializer {
 		public Boolean highlightRedstone;
 		private OreHighlightMode oreHighlightMode;
 		public java.util.Set<OreHighlightMode> oreHighlightModes;
-		public static final int MAX_BLOCK_HIGHLIGHT_RANGE = 64;
+		public static final int MAX_BLOCK_HIGHLIGHT_RANGE = 128;
 		/** 0 means unlimited within loaded/rendered chunks; otherwise 1..64 blocks. */
 		public int blockHighlightRange;
 		/** 0 means unlimited within loaded/rendered chunks; otherwise 1..64 blocks for ore targets. */
@@ -300,6 +316,11 @@ public final class NearbyWorkshopClient implements ClientModInitializer {
 		public Config sanitize() {
 			if (mobCounterFilter == null) mobCounterFilter = MobHighlights.Filter.ALL;
 			mobCounterScale = Math.clamp(mobCounterScale, 50, 150);
+			brokenContainers = Math.max(0, brokenContainers);
+			brokenContainerHudRight = Math.clamp(brokenContainerHudRight, 0, 100);
+			brokenContainerHudTop = Math.clamp(brokenContainerHudTop, 0, 100);
+			brokenContainerHudScale = Math.clamp(brokenContainerHudScale, 50, 150);
+			brokenContainerHudOpacity = Math.clamp(brokenContainerHudOpacity, 0, 100);
 			mobCounterOpacity = Math.clamp(mobCounterOpacity, 0, 100);
 			mobCounterSoftness = Math.clamp(mobCounterSoftness, 0, 8);
 			if (playerOverheadStyle == null) playerOverheadStyle = new OverheadStyle(overheadHealthHeight);

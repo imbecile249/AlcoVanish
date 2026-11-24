@@ -1,7 +1,31 @@
+# Gradle
 .gradle/
-build/
-run/
 .build-toolchain/
+build/
+out/
+
+# Minecraft
+run/
+runs/
+logs/
+crash-reports/
+
+# IDE
 .idea/
 .vscode/
 *.iml
+.classpath
+.project
+.settings/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Local secrets
+.env
+.env.local
+
+# Temporary files
+*.log
+*.tmp

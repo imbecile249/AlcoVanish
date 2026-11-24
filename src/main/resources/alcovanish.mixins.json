@@ -4,6 +4,11 @@
 	"compatibilityLevel": "JAVA_25",
 	"client": [
 		"ClientPacketListenerMixin",
+		"AutoToolMixin",
+		"ContainerBreakMixin",
+		"NoFogMixin",
+		"LightmapMixin",
+		"MobEffectFogMixin",
 		"OreUpdateMixin",
 		"PlayerOutlineMixin",
 		"WorldMobOutlineMixin",
