@@ -28,4 +28,20 @@
 
 ## Сборка
 
-Нужны JDK 25 и Gradle 9.8.2 или новее. Выполни `gradle build`; JAR появится в `build/mods/AlcoVanish-26.2-beta.jar`.
+Установи JDK 25 и укажи путь к нему через `JAVA_HOME` или добавь его `bin` в `PATH`. Gradle Wrapper скачает Gradle 9.8.2 и проверит SHA-256 дистрибутива при первой загрузке. Первый запуск требует подключения к интернету для загрузки Gradle и зависимостей. Отдельная установка Gradle и папка `.build-toolchain` не нужны.
+
+Запусти сборку из корня проекта.
+
+**Windows (PowerShell)**
+
+```powershell
+.\gradlew.bat clean build
+```
+
+**Linux**
+
+```sh
+./gradlew clean build
+```
+
+Готовый мод появится в `build/mods/AlcoVanish-26.2-beta.jar`.
